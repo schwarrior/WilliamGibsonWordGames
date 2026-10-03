@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gibson Word Games</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .hero { max-width: 760px; margin: 0 auto; padding: 48px 16px 24px; }
+  .hero h1 { font: 600 clamp(1.6rem, 5vw, 2.4rem) / 1.1 var(--mono); margin: 0 0 12px; letter-spacing: .03em; }
+  .hero p { color: var(--muted); margin: 0; max-width: 56ch; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; max-width: 760px; margin: 0 auto; padding: 0 16px 48px; }
+  .card { display: block; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  .card:hover { border-color: var(--accent); }
+  .card h2 { font: 600 1.05rem var(--mono); margin: 0 0 6px; color: var(--accent); }
+  .card p { margin: 0; font-size: .92rem; color: var(--muted); }
+  .how { max-width: 760px; margin: 0 auto; padding: 0 16px 48px; font-size: .92rem; color: var(--muted); }
+  .how ol { padding-left: 1.2em; }
+</style>
+</head>
+<body>
+<section class="hero">
+  <h1>WILLIAM GIBSON<br>WORD GAMES</h1>
+  <p>Forty answers from Neuromancer to Agency: titles, people, firms, bands and places. Print them, solve them in pencil, then come back here to check.</p>
+</section>
+<section class="cards">
+  <a class="card" href="crossword.html"><h2>Crossword →</h2><p>A 40-clue crossword packed into a tight grid.</p></a>
+  <a class="card" href="wordsearch.html"><h2>Word search →</h2><p>The same 40 answers, hidden forwards, backwards and diagonally.</p></a>
+</section>
+<section class="how">
+  <ol>
+    <li>Open a puzzle and press <b>Print blank</b>.</li>
+    <li>Solve it on paper.</li>
+    <li>Come back and enter what you wrote. In the crossword, type your letters and press <b>Check all</b>. In the word search, drag across each word you circled. Progress is saved in this browser.</li>
+  </ol>
+  <p>Do the crossword first. The word search's word list gives the answers away, unless you switch it to <b>Clues</b>.</p>
+</section>
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gibson Word Search</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .wrap { position: relative; width: max-content; max-width: 100%; margin: 0 auto; touch-action: none; }
+  .ws {
+    --cell: 32px;
+    display: grid; grid-template-columns: repeat(var(--n), var(--cell)); grid-auto-rows: var(--cell);
+    user-select: none; -webkit-user-select: none; cursor: crosshair;
+  }
+  .ws span {
+    display: grid; place-items: center;
+    font: 500 calc(var(--cell) * .56) / 1 var(--mono);
+  }
+  svg.marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  svg.marks line { stroke-linecap: round; stroke-width: .72; fill: none; }
+  svg.marks .found { stroke: var(--accent); opacity: .3; }
+  svg.marks .revealed { stroke: var(--wrong); opacity: .22; }
+  svg.marks .drag { stroke: var(--ink); opacity: .16; }
+  svg.marks .miss { stroke: var(--wrong); opacity: .35; }
+
+  .list-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .list-head h2 { font: 600 .8rem var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  .seg { display: inline-flex; padding: 0; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 5px 10px; background: transparent; }
+  .seg button.on { background: var(--accent); color: var(--bg); }
+  .note { color: var(--muted); font-size: .82rem; margin: 0 0 10px; }
+
+  ul.words { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 18px; }
+  ul.words li { break-inside: avoid; font: 500 .9rem var(--mono); padding: 3px 0; }
+  ul.words li.found { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--accent); text-decoration-thickness: 2px; }
+  ul.words.clues { columns: 1; }
+  ul.words.clues li { font: .88rem var(--sans); display: grid; grid-template-columns: 1fr auto; gap: 8px; border-bottom: 1px dashed var(--line); padding: 5px 0; }
+  ul.words.clues li .ans { font: 600 .82rem var(--mono); color: var(--accent); }
+  ul.words.clues li .enum { color: var(--muted); font: .78rem var(--mono); }
+  ul.words.clues li.found { text-decoration: none; }
+  ul.words.clues li.found .q { text-decoration: line-through; text-decoration-color: var(--accent); }
+
+  body.blank svg.marks { display: none; }
+  body.blank ul.words li.found, body.blank ul.words li.found .q { text-decoration: none; color: inherit; }
+  body.blank ul.words.clues li .ans { display: none; }
+
+  @media print {
+    .ws { --cell: 0.36in !important; }
+    .ws span { font-size: 13pt; }
+    .wrap { margin: 6pt auto 12pt; }
+    ul.words { columns: 4; font-size: 9.5pt; }
+    ul.words.clues { columns: 2; column-gap: 18pt; }
+    ul.words.clues li { font-size: 8.5pt; padding: 2pt 0; }
+    ul.words li { padding: 1pt 0; }
+    .list-head h2 { color: #000; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>GIBSON // WORD SEARCH</h1>
+  <span class="sub">The crossword's 40 answers, hidden in every direction</span>
+  <nav class="no-print"><a href="index.html">home</a><a href="crossword.html">← crossword</a></nav>
+</header>
+
+<div class="toolbar no-print">
+  <button id="reveal">Reveal remaining</button>
+  <button id="reset">Reset</button>
+  <button id="print-blank" class="primary" title="Print the grid with no marks">Print blank</button>
+  <button id="print">Print as marked</button>
+  <span class="status" id="status"></span>
+</div>
+
+<main class="layout">
+  <section class="panel">
+    <div class="wrap" id="wrap">
+      <div class="ws" id="ws"></div>
+      <svg class="marks" id="marks"></svg>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="list-head">
+      <h2 id="list-title">Hidden words</h2>
+      <div class="seg no-print" role="group" aria-label="List shows">
+        <button data-mode="words" class="on">Words</button><button data-mode="clues">Clues</button>
+      </div>
+    </div>
+    <p class="note no-print">Drag from the first letter to the last to mark a word. Words run across, down, diagonally and backwards; spaces and punctuation are dropped. Choose <b>Clues</b> to hunt from the crossword clues without seeing the answers.</p>
+    <ul class="words" id="words"></ul>
+  </section>
+</main>
+
+<script src="assets/puzzle-data.js"></script>
+<script>
+(() => {
+  const W = window.PUZZLE.wordsearch;
+  const C = window.PUZZLE.crossword;
+  const STORE = 'gibson-wordsearch-' + window.PUZZLE.seed;
+  const N = W.size;
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const wsEl = document.getElementById('ws');
+  const marks = document.getElementById('marks');
+  const listEl = document.getElementById('words');
+  const statusEl = document.getElementById('status');
+
+  const meta = {};
+  for (const c of [...C.clues.across, ...C.clues.down]) meta[c.answer] = c;
+  const placements = W.placements.map((p) => ({
+    ...p, endRow: p.row + p.dr * (p.word.length - 1), endCol: p.col + p.dc * (p.word.length - 1),
+  }));
+
+  let found = new Set();
+  let revealed = false;
+  let mode = 'words';
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE));
+    if (s) { found = new Set(s.found || []); revealed = !!s.revealed; mode = s.mode || 'words'; }
+  } catch (e) {}
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ found: [...found], revealed, mode })); } catch (e) {} };
+
+  // ---- grid
+  wsEl.style.setProperty('--n', N);
+  marks.setAttribute('viewBox', `0 0 ${N} ${N}`);
+  marks.setAttribute('preserveAspectRatio', 'none');
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    const s = document.createElement('span');
+    s.textContent = W.grid[r][c];
+    s.dataset.r = r; s.dataset.c = c;
+    wsEl.appendChild(s);
+  }
+  function fit() {
+    const avail = wsEl.closest('.panel').clientWidth - 28;
+    wsEl.style.setProperty('--cell', Math.max(17, Math.min(34, Math.floor(avail / N))) + 'px');
+  }
+  window.addEventListener('resize', fit);
+
+  function line(r1, c1, r2, c2, cls) {
+    const l = document.createElementNS(SVGNS, 'line');
+    l.setAttribute('x1', c1 + .5); l.setAttribute('y1', r1 + .5);
+    l.setAttribute('x2', c2 + .5); l.setAttribute('y2', r2 + .5);
+    l.setAttribute('class', cls);
+    marks.appendChild(l);
+    return l;
+  }
+  function drawMarks() {
+    marks.innerHTML = '';
+    for (const p of placements) {
+      if (found.has(p.word)) line(p.row, p.col, p.endRow, p.endCol, 'found');
+      else if (revealed) line(p.row, p.col, p.endRow, p.endCol, 'revealed');
+    }
+  }
+
+  // ---- list
+  function renderList() {
+    listEl.innerHTML = '';
+    listEl.classList.toggle('clues', mode === 'clues');
+    document.getElementById('list-title').textContent = mode === 'clues' ? 'Find the answers to' : 'Hidden words';
+    document.querySelectorAll('.seg button').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
+    const items = placements.map((p) => meta[p.word]);
+    if (mode === 'words') items.sort((a, b) => a.answer.localeCompare(b.answer));
+    else items.sort((a, b) => a.clue.localeCompare(b.clue));
+    for (const m of items) {
+      const li = document.createElement('li');
+      li.classList.toggle('found', found.has(m.answer));
+      if (mode === 'words') li.textContent = m.answer;
+      else {
+        const q = document.createElement('span'); q.className = 'q';
+        q.append(m.clue + ' ');
+        const en = document.createElement('span'); en.className = 'enum'; en.textContent = `(${m.enumeration})`;
+        q.appendChild(en);
+        const a = document.createElement('span'); a.className = 'ans';
+        a.textContent = found.has(m.answer) ? m.answer : '';
+        li.append(q, a);
+      }
+      listEl.appendChild(li);
+    }
+    const done = found.size === placements.length;
+    statusEl.classList.toggle('done', done);
+    statusEl.textContent = done ? 'All 40 found. The matrix is yours.' : `${found.size}/${placements.length} found`;
+  }
+  document.querySelectorAll('.seg button').forEach((b) => b.onclick = () => { mode = b.dataset.mode; save(); renderList(); });
+
+  // ---- dragging
+  let start = null, dragLine = null;
+  function cellFromPoint(x, y) {
+    const rect = wsEl.getBoundingClientRect();
+    const size = rect.width / N;
+    const c = Math.floor((x - rect.left) / size), r = Math.floor((y - rect.top) / size);
+    return { r: Math.max(0, Math.min(N - 1, r)), c: Math.max(0, Math.min(N - 1, c)) };
+  }
+  // Snap the end point onto the nearest of the 8 straight-line directions.
+  function snap(a, b) {
+    const dr = b.r - a.r, dc = b.c - a.c;
+    if (!dr && !dc) return b;
+    const ang = Math.round(Math.atan2(dr, dc) / (Math.PI / 4)) * (Math.PI / 4);
+    const sr = Math.round(Math.sin(ang)), sc = Math.round(Math.cos(ang));
+    let len = Math.max(Math.abs(dr), Math.abs(dc));
+    while (len > 0 && (a.r + sr * len < 0 || a.r + sr * len >= N || a.c + sc * len < 0 || a.c + sc * len >= N)) len--;
+    return { r: a.r + sr * len, c: a.c + sc * len };
+  }
+  const wrap = document.getElementById('wrap');
+  wrap.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    wrap.setPointerCapture(e.pointerId);
+    start = cellFromPoint(e.clientX, e.clientY);
+    dragLine = line(start.r, start.c, start.r, start.c, 'drag');
+  });
+  wrap.addEventListener('pointermove', (e) => {
+    if (!start) return;
+    const end = snap(start, cellFromPoint(e.clientX, e.clientY));
+    dragLine.setAttribute('x2', end.c + .5); dragLine.setAttribute('y2', end.r + .5);
+  });
+  wrap.addEventListener('pointerup', (e) => {
+    if (!start) return;
+    const end = snap(start, cellFromPoint(e.clientX, e.clientY));
+    const hit = placements.find((p) =>
+      (p.row === start.r && p.col === start.c && p.endRow === end.r && p.endCol === end.c) ||
+      (p.endRow === start.r && p.endCol === start.c && p.row === end.r && p.col === end.c));
+    dragLine.remove();
+    if (hit && !found.has(hit.word)) {
+      found.add(hit.word); save(); drawMarks(); renderList();
+    } else if (!hit && (start.r !== end.r || start.c !== end.c)) {
+      const miss = line(start.r, start.c, end.r, end.c, 'miss');
+      setTimeout(() => miss.remove(), 450);
+    }
+    start = null; dragLine = null;
+  });
+  wrap.addEventListener('pointercancel', () => { if (dragLine) dragLine.remove(); start = null; dragLine = null; });
+
+  // ---- buttons
+  document.getElementById('reveal').onclick = () => { revealed = !revealed; save(); drawMarks(); syncReveal(); };
+  function syncReveal() { document.getElementById('reveal').textContent = revealed ? 'Hide reveal' : 'Reveal remaining'; }
+  document.getElementById('reset').onclick = () => {
+    if (!confirm('Clear every found word?')) return;
+    found.clear(); revealed = false; save(); drawMarks(); renderList(); syncReveal();
+  };
+  document.getElementById('print').onclick = () => window.print();
+  document.getElementById('print-blank').onclick = () => {
+    document.body.classList.add('blank'); window.print(); document.body.classList.remove('blank');
+  };
+
+  fit(); drawMarks(); renderList(); syncReveal();
+})();
+</script>
+</body>
+</html>
