@@ -16,12 +16,17 @@
 Create two word games based on the works of William Gibson for a player who's read them all. Make a crossword puzzle and a word search. Intend to print the puzzles out and complete them with a pencil. Then want to return the interactive SPAs, fill in answers and see if I got it right. Produce 40 clues. Try to avoid a sprawling, spaced-out crossword layout. The clue answers from the crossword is the list of hidden words in the word search. Clues can be the names of books, names of characters, companies, bands or locations. Example clue: "Virtal Light's by-way, interrupted". Answer: BAYBRIDGE. Example clue: "Peripheral's friendly klept". Answer: LEVZUBOV.
 # Playing
 
-Open [index.html](index.html) in a browser. No server or build step is needed.
+**Play online:** <https://schwarrior.github.io/WilliamGibsonWordGames/index.html>
 
-- **[crossword.html](crossword.html)**: press **Print blank** to get the grid on page 1 and the clues on page 2. Later, type your letters into the grid and press **Check all** (marks wrong letters), **Check word**, or **Reveal word**. Click a cell twice, or press Space, to switch between across and down. Tab moves to the next clue.
-- **[wordsearch.html](wordsearch.html)**: press **Print blank**. Later, drag from the first letter of a word to the last; correct finds are struck from the list. Switch the list to **Clues** if you do the word search first and don't want the crossword answers spoiled.
+- [Crossword](https://schwarrior.github.io/WilliamGibsonWordGames/crossword.html)
+- [Word search](https://schwarrior.github.io/WilliamGibsonWordGames/wordsearch.html)
 
-Progress is saved in your browser's localStorage.
+To play offline, open [index.html](index.html) from a local clone; no server or build step is needed.
+
+- **Crossword**: press **Print blank** to get the grid on page 1 and the clues on page 2. Later, type your letters into the grid and press **Check all** (marks wrong letters), **Check word**, or **Reveal word**. Click a cell twice, or press Space, to switch between across and down. Tab moves to the next clue.
+- **Word search**: press **Print blank**. Later, drag from the first letter of a word to the last; correct finds are struck from the list. Switch the list to **Clues** if you do the word search first and don't want the crossword answers spoiled.
+
+Progress is saved in your browser's localStorage, per device and per site. Answers entered on the GitHub Pages site won't appear in a local copy, and the reverse is also true.
 
 # Regenerating
 
